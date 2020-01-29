@@ -219,7 +219,7 @@ class MyoRaw(object):
         self.bt.discover()
         while True:
             p = self.bt.recv_packet()
-            print('scan response:', p)
+            # print('scan response:', p)
 
             if p.payload.endswith(b'\x06\x42\x48\x12\x4A\x7F\x2C\x48\x47\xB9\xDE\x04\xA9\x01\x00\x06\xD5'):
                 addr = list(multiord(p.payload[2:8]))
@@ -437,10 +437,9 @@ if __name__ == '__main__':
     print(str(HAVE_PYGAME))
     last_vals = None
 
-    with open('raw_emg.csv', mode='w') as emg_file, open('raw_emg_gesture.csv',mode='w') as gesture_file:
+    with open('raw_emg_3.csv', mode='w') as emg_file, open('raw_emg_gesture_3.csv',mode='w') as gesture_file:
         emg_writer = csv.writer(emg_file, delimiter=',')
         emg_gesture_writer = csv.writer(gesture_file, delimiter=',')
-
 
         def plot(scr, vals):
             DRAW_LINES = True
@@ -479,13 +478,25 @@ if __name__ == '__main__':
                 #     if ev.type == KEYDOWN:
                 #         if K_1 <= ev.key <= K_5:
                 #             print(ev.key)
+
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_1]: #element will be 1
-                    # print('1 pressed')
-                    emg_gesture_writer.writerow((emg,pygame.K_1))
+                    emg_gesture_writer.writerow((1,))
+
                 elif keys[pygame.K_2]: #element will be 1
-                    # print('2 pressed')
-                    emg_gesture_writer.writerow((emg,pygame.K_2))
+                    emg_gesture_writer.writerow((2,))
+
+                elif keys[pygame.K_3]: #element will be 1
+                    emg_gesture_writer.writerow((3,))
+
+                elif keys[pygame.K_4]: #element will be 1
+                    emg_gesture_writer.writerow((4,))
+
+                elif keys[pygame.K_5]: #element will be 1
+                    emg_gesture_writer.writerow((5,))
+                else:
+                    emg_gesture_writer.writerow((0,))
+
                 emg_writer.writerow(emg)
             else:
                 print(emg)
