@@ -1,25 +1,10 @@
-#!/usr/bin/env python
-from __future__ import division
+#!/usr/bin/env python3
+
 import myo_raw
 import csv
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
-
-def ReadData(file):
-    with open(file) as csv_file:
-        reader = csv.reader(csv_file,delimiter=',')
-        count = 0
-        for row in reader:
-            for i in range(len(row)):
-                row[i] = float(row[i])
-            if count == 0:
-                array = np.array(row)
-            else:
-                array = np.vstack((array,row))
-            count += 1
-    return array
 
 def plot_emg(data,gesture):
     fs = 200. #200Hz
@@ -58,8 +43,8 @@ if __name__ == '__main__':
     fs = 200. #200Hz
     # test_array = np.array([[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]])
 
-    emg_array = ReadData('raw_emg_3.csv')
-    gesture_array = ReadData('raw_emg_gesture_3.csv')
+    emg_array = np.loadtxt('raw_emg_1.csv',delimiter=',')
+    gesture_array = np.loadtxt('raw_emg_gesture_1.csv',delimiter=',')
     # print(RMS(emg_array[:100]))
     # print(MAV(emg_array[:100]))
     time = len(emg_array)/fs #samples/(sample/second)
