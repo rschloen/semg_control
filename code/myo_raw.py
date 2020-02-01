@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 '''
 	Original by dzhu
@@ -473,12 +473,6 @@ if __name__ == '__main__':
             if HAVE_PYGAME:
                 ## update pygame display
                 plot(scr, [e / 500. for e in emg])
-                # print(emg)
-                # for ev in pygame.event.get():
-                #     if ev.type == KEYDOWN:
-                #         if K_1 <= ev.key <= K_5:
-                #             print(ev.key)
-
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_1]: #element will be 1
                     emg_gesture_writer.writerow((1,))
