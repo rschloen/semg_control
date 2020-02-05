@@ -22,9 +22,9 @@ class Network(nn.Module):
     def __init__(self):
         super(Network,self).__init__()
         self.conv1 = nn.Conv2d(1,32,3)
-        self.fc1 = nn.Linear(3072,7)
+        self.fc1 = nn.Linear(3072,12)
         self.pool = nn.MaxPool2d((1,3))
-        self.relu = nn.Relu()
+        self.relu = nn.ReLU()
 
     def forward(self,x):
         #convlution 1 to 32 feature maps, 3x3 kernel
@@ -48,7 +48,7 @@ class Network_enhanced(nn.Module):
         self.BN1 = nn.BatchNorm1d(32)
         self.BN2 = nn.BatchNorm1d(64)
         self.BN3 = nn.BatchNorm1d(500)
-        self.prelu = nn.PRelu()
+        self.prelu = nn.PReLU()
         self.drop = nn.Dropout2d()
 
     def forward(self,x):
@@ -82,3 +82,66 @@ class Network_enhanced(nn.Module):
         x = self.drop(x)
         #softmax
         return F.softmax(x)
+
+
+def train_model(model,criterion,optimizer,scheduler,num_epochs=10):
+    """Modified example from pytorch tutorials"""
+    since = time.time()
+    best_model_wts = copy.deepcopy(model.state_dict())
+    best_acc = 0.0
+    for epoch in range(num_epochs):
+        print('Epoch {}/{}'.format(epoch,num_epochs-1))
+        print('-'*10)
+        for phase in ['train','val']:
+            if phase == 'train':
+                model.train()
+            else:
+                model.eval()
+        running_loss = 0.0
+        running_correct = 0
+
+        for input, labels in data[phase]:
+            inputs = inputs.to(device)
+            labels = labels.to(device)
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(phase == 'train'):
+                outputs = model(inputs)
+                _, prediction = torch.max(outputs,1)
+                loss = criterion(outputs,labels)
+
+                if phase == 'train':
+                    loss.backward()
+                    optimizer.step()
+
+                running_loss += loss.item() * inputs.size(0)
+                running_correct += torch.sum(prediction = labels.data)
+            if phase == 'train':
+                scheduler.step()
+            epoch_loss = running_loss/len(data[phase])
+            epoch_acc = running_correct.double()/len(data[phase])
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,epoch_acc))
+
+            if phase == 'val' and epoch_acc > best_acc:
+                best_acc = epoch_acc
+                best_model_wts = copy.deepcopy(model.state_dict())
+    total_time = time.time() - since
+    print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
+    model.load_state_dict(best_model_wts)
+    return model
+
+
+def main():
+    model = Network()
+    learning_rate = 1e-4
+    optimizer = torch.optim.Adam(model.parameters(),lr=learning_rate)
+    criterion = torch.nn.MSELoss(reduction='sum')
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+
+
+
+
+if __name__ == '__main__':
+    main()
