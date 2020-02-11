@@ -8,26 +8,22 @@ import torch.optim as optim
 from torch.optim import lr_scheduler
 import torch.nn.functional as F
 import numpy as np
-# import torchvision
-# from torchvision import datasets, models, transforms
 import matplotlib.pyplot as plt
 import time
 import os
 import copy
 from scipy.io import loadmat
 from statistics import mode
-# import scipy
-# import scipy.stats
-# print(scipy.__version__)
+
 
 plt.ion()   # interactive mode
 
 
 class Network(nn.Module):
-    def __init__(self):
+    def __init__(self,num_classes):
         super(Network,self).__init__()
         self.conv1 = nn.Conv2d(1,32,3)
-        self.fc1 = nn.Linear(3072,6)
+        self.fc1 = nn.Linear(3072,num_classes)
         self.pool = nn.MaxPool2d((3,1))
         self.relu = nn.ReLU()
 
@@ -48,12 +44,12 @@ class Network(nn.Module):
         return F.softmax(x,dim=1) #dim=1 refers to along the rows
 
 class Network_enhanced(nn.Module):
-    def __init__(self):
+    def __init__(self,num_classes):
         super(Network_enhanced,self).__init__()
         self.conv1 = nn.Conv2d(1,32,(5,3))
         self.conv2 = nn.Conv2d(32,64,(5,3))
-        self.fc1 = nn.Linear(1024,6)
-        self.fc2 = nn.Linear(500,6)
+        self.fc1 = nn.Linear(1024,num_classes)
+        self.fc2 = nn.Linear(500,num_classes)
         self.pool = nn.MaxPool2d((3,1))
         self.BN1 = nn.BatchNorm2d(32)
         self.BN2 = nn.BatchNorm2d(64)
@@ -130,10 +126,9 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
 
                 with torch.set_grad_enabled(phase == 'train'):
                     outputs = model(inputs)
-                    # print(outputs[0])
                     prediction = torch.argmax(outputs,dim=1)
-                    # print(prediction)
-                    loss = criterion(outputs,labels)
+                    loss = criterion(outputs,labels.float())
+
 
                     if phase == 'train':
                         loss.backward()
@@ -174,14 +169,17 @@ def shuffle(data,size):
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    # model = Network()
-    model = Network_enhanced()
+    ## Initialize model
+    # model = Network(6)
+    model = Network_enhanced(6)
 
+    # Initialize hyperparameters and supporting functions
     learning_rate = 0.02
     optimizer = optim.Adam(model.parameters(),lr=learning_rate)
     criterion = nn.MSELoss(reduction='sum')
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=1,gamma=0.1)
-    # emg_data = np.array([])
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=3,gamma=0.1)
+
+    ## Load and combine data from all subjects
     x = loadmat('/home/rschloen/WinterProj/ninapro_data/s1/S1_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
     emg_data = x['emg'] #first 8 columns are from myo closest to elbow, next 8 are from second myo rotated 22 degs
     restim = x['restimulus'] #restimulus and rerepetition are the corrected indexes for the movements
@@ -192,7 +190,9 @@ def main():
         restim = np.vstack((restim,x['restimulus']))
         rep = np.vstack((rep,x['rerepetition']))
     # print(emg_data.shape)
-    #Want a 260ms window (52 samples) of all eight channels as inputs with 235ms overlap (from paper)
+
+    ## Initialize sampling parameters
+    ## Want a 260ms window (52 samples) of all eight channels as inputs with 235ms overlap (from paper)
     window_size = 52 #samples, 260ms
     overlap = 47 #sample, 235ms
     step = window_size - overlap
@@ -200,6 +200,7 @@ def main():
     data = {'train':[],'eval':[]}
     map = [(1,np.array([0,1,0,0,0,0])),(3,np.array([0,0,1,0,0,0])),(5,np.array([0,0,0,1,0,0])),(7,np.array([0,0,0,0,1,0])),(12,np.array([0,0,0,0,0,1]))]
 
+    ## Sort and label it for training/validation
     while i < len(emg_data)-window_size:
         if np.random.randint(1,11) < 8:
             set = 'train'
@@ -242,7 +243,7 @@ def main():
     # print((len(data['train'])+len(data['eval']))*.8)
     # print((len(data['train'])+len(data['eval']))*.2)
 
-
+    ## Train model
     best_model = train_model(model,criterion,optimizer,exp_lr_scheduler,data)
 
 
