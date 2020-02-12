@@ -98,7 +98,7 @@ class Network_enhanced(nn.Module):
         return F.softmax(x,dim=1)
 
 
-def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
+def train_model(model,criterion,optimizer,scheduler,data,num_epochs=3):
     """Modified example from pytorch tutorials, Author: Sasank Chilamkurthy"""
     since = time.time()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -108,6 +108,7 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch,num_epochs-1))
         print('-'*10)
+        print(scheduler.get_lr())
         for phase in ['train','eval']:
             if phase == 'train':
                 model.train()
@@ -115,7 +116,7 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
                 model.eval()
             running_loss = 0.0
             running_correct = 0
-            print(scheduler.get_lr())
+            counter = 0
             for inputs, labels in data[phase]:
                 inputs = torch.from_numpy(inputs)
                 labels = torch.from_numpy(np.array([labels]))
@@ -133,21 +134,24 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
-
+                # print(list(model.parameters())[0].grad)
                 running_loss += loss.item() * inputs.size(0)
                 # print(torch.argmax(labels))
                 # print(prediction == torch.argmax(labels))
                 running_correct +=  torch.sum(prediction == torch.argmax(labels))  #torch.sum mainly acts to put value in correct type/format
+                if counter % 2000 == 1999:
+                    print('{} Loss: {:.4f}'.format(phase,running_loss/2000))
+                    running_loss = 0.0
+                counter += 1
             if phase == 'train':
                 scheduler.step()
             epoch_loss = running_loss/len(data[phase])
             epoch_acc = (running_correct.double()/len(data[phase]))*100 #percent
-            # print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,epoch_acc))
 
             if phase == 'eval' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,best_acc))
+            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,epoch_acc))
     total_time = time.time() - since
     print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
     model.load_state_dict(best_model_wts)
@@ -175,9 +179,9 @@ def main():
 
     # Initialize hyperparameters and supporting functions
     learning_rate = 0.02
-    optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+    optimizer = optim.SGD(model.parameters(),lr=learning_rate)
     criterion = nn.MSELoss(reduction='sum')
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=3,gamma=0.1)
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=1,gamma=0.1)
 
     ## Load and combine data from all subjects
     x = loadmat('/home/rschloen/WinterProj/ninapro_data/s1/S1_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
@@ -218,25 +222,13 @@ def main():
 
     # count = 0
     # test = torch.from_numpy(np.array(10))
-    # print(test)
-    # print(test.double())
-    # acc = test.double()/2
-    # print("acc: {}".format(acc))
     # for input, label in data['train']:
     #     label = torch.from_numpy(label)
     #     print(torch.argmax(label))
     #     count += torch.argmax(label) == test
     #     break
-    #
     # print(count)
 
-    # loss = nn.CrossEntropyLoss()
-    # input = torch.randn(3, 5, requires_grad=True)
-    # print(input)
-    # target = torch.empty(3, dtype=torch.long).random_(5)
-    # print(target)
-    # output = loss(input, target)
-    # print(output)
     # print(len(data['train']))
     # print(len(data['eval']))
     # print((len(data['train'])+len(data['eval'])))
