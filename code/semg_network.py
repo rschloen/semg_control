@@ -88,7 +88,7 @@ class Network_enhanced(nn.Module):
         # print(x)
         #batch normalization
         # x = self.BN3(x)
-        # # # #prelu
+        # # #prelu
         # x = self.prelu(x)
         # # # #dropout
         # x = self.drop(x)
@@ -98,13 +98,15 @@ class Network_enhanced(nn.Module):
         return F.softmax(x,dim=1)
 
 
-def train_model(model,criterion,optimizer,scheduler,data,num_epochs=3):
+def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
     """Modified example from pytorch tutorials, Author: Sasank Chilamkurthy"""
     since = time.time()
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+    prev_loss = 0
+    loss_cnt = 0
     for epoch in range(num_epochs):
         print('Epoch {}/{}'.format(epoch,num_epochs-1))
         print('-'*10)
@@ -117,30 +119,39 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=3):
             running_loss = 0.0
             running_correct = 0
             counter = 0
-            for inputs, labels in data[phase]:
-                inputs = torch.from_numpy(inputs)
-                labels = torch.from_numpy(np.array([labels]))
-                inputs = inputs.view(1,1,inputs.shape[0],inputs.shape[1])
-                inputs = inputs.to(device)
-                labels = labels.to(device)
+            for input, label in data[phase]:
+                input = torch.from_numpy(input)
+                label = torch.from_numpy(np.array([label]))
+                input = input.view(1,1,input.shape[0],input.shape[1])
+                input = input.to(device)
+                label = label.to(device)
                 optimizer.zero_grad()
 
                 with torch.set_grad_enabled(phase == 'train'):
-                    outputs = model(inputs)
-                    prediction = torch.argmax(outputs,dim=1)
-                    loss = criterion(outputs,labels.float())
+                    output = model(input)
+                    prediction = torch.argmax(output,dim=1)
+                    # print(output.size())
+                    # loss = F.nll_loss(output,torch.tensor([torch.argmax(label)]))
+                    loss = criterion(output,label.float())
 
 
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
                 # print(list(model.parameters())[0].grad)
-                running_loss += loss.item() * inputs.size(0)
+                running_loss += loss.item() * input.size(0)
+                '''Add early stopping: if change in loss less than ... x times, stop.
+                Useful check if updating properly as well'''
+                if (running_loss - prev_loss) < 1e-6: loss_cnt += 1
+                if loss_cnt > 5: break
+                prev_loss = running_loss
                 # print(torch.argmax(labels))
                 # print(prediction == torch.argmax(labels))
-                running_correct +=  torch.sum(prediction == torch.argmax(labels))  #torch.sum mainly acts to put value in correct type/format
+                running_correct +=  torch.sum(prediction == torch.argmax(label))  #torch.sum mainly acts to put value in correct type/format
                 if counter % 2000 == 1999:
-                    print('{} Loss: {:.4f}'.format(phase,running_loss/2000))
+                    print('{} Loss: {:.4f}'.format(phase,running_loss/counter))
+                    print(list(model.parameters())[0].grad)
+                    counter = 0
                     running_loss = 0.0
                 counter += 1
             if phase == 'train':
@@ -157,31 +168,19 @@ def train_model(model,criterion,optimizer,scheduler,data,num_epochs=3):
     model.load_state_dict(best_model_wts)
     return model
 
-def shuffle(data,size):
-    #shuffle input data randomly
-    temp_in = []
-    temp_out = []
-    for _ in range(size/2):
-        index = np.random.randint(0,size,2)
-        temp_in[:] = input[index[0]]
-        temp_out[:] = output[index[0]]
-        input[index[0]] = input[index[1]]
-        input[index[1]] = temp_in
-        output[index[0]] = output[index[1]]
-        output[index[1]] = temp_out
-    return input,output
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     ## Initialize model
     # model = Network(6)
     model = Network_enhanced(6)
+    # print(list(model.parameters()))
 
     # Initialize hyperparameters and supporting functions
     learning_rate = 0.02
     optimizer = optim.SGD(model.parameters(),lr=learning_rate)
-    criterion = nn.MSELoss(reduction='sum')
-    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=1,gamma=0.1)
+    criterion = nn.MSELoss(reduction='mean')
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=3,gamma=0.1)
 
     ## Load and combine data from all subjects
     x = loadmat('/home/rschloen/WinterProj/ninapro_data/s1/S1_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
@@ -211,14 +210,25 @@ def main():
         else:
             set = 'eval'
         label = mode(list(restim[i:i+window_size][0]))
+        ## Normalize Data??
+        emg_win = emg_data[i:i+window_size,:8]
+        norm_emg = (emg_win - np.mean(emg_win))/(np.std(emg_win))
         if label == 0:
-            if np.random.randint(10) == 1: #only save about half of the rest states
-                data[set].append([emg_data[i:i+window_size,:8],np.array([1,0,0,0,0,0])])
+            if np.random.randint(6) == 1: #only save about fifth of the rest states
+                data[set].append([norm_emg,np.array([1,0,0,0,0,0])])
         else:
             for act, new in map:
                 if label == act:
-                    data[set].append([emg_data[i:i+window_size,:8],new])
+                    data[set].append([norm_emg,new])
         i += step
+
+
+    # pkl_emg_data = json.dumps(data)
+    np.save("nina_data/all_6C_data_1.npy",data)
+    # pickle.write(data,f)
+    # f.close()
+
+    # print(type(data))
 
     # count = 0
     # test = torch.from_numpy(np.array(10))
@@ -236,7 +246,7 @@ def main():
     # print((len(data['train'])+len(data['eval']))*.2)
 
     ## Train model
-    best_model = train_model(model,criterion,optimizer,exp_lr_scheduler,data)
+    # best_model = train_model(model,criterion,optimizer,exp_lr_scheduler,data)
 
 
 
