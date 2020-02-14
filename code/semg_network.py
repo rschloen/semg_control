@@ -223,10 +223,7 @@ def main():
         i += step
 
 
-    # pkl_emg_data = json.dumps(data)
     np.save("nina_data/all_6C_data_1.npy",data)
-    # pickle.write(data,f)
-    # f.close()
 
     # print(type(data))
 

@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.optim import lr_scheduler
+from torch.utils import data
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
@@ -12,31 +13,37 @@ import time
 import os
 import copy
 from semg_network import Network, Network_enhanced
+from data_loader import SEMG_Dataset
 
 
 class Trainer():
-    def __init__(self,model,optimizer,criterion,device,scheduler=None,epochs=10):
+    def __init__(self,model,optimizer,criterion,device,data_path,loader_params,scheduler=None,epochs=10):
         self.model = model
         self.optimizer = optimizer
         self.criterion = criterion
         self.scheduler = scheduler
         self.device = device
         self.max_epochs = epochs
-        self.data = np.load("nina_data/all_6C_data_1.npy",allow_pickle='TRUE').item()
-        self.train_data_len = len(self.data['train'])
-        self.test_data_len = len(self.data['eval'])
+
+        train_dataset = SEMG_Dataset(data_path,'train')
+        test_dataset = SEMG_Dataset(data_path,'eval')
+        self.data_loaders = {'train':data.DataLoader(train_dataset,**loader_params),
+                              'eval':data.DataLoader(test_dataset,**loader_params)}
+        self.train_data_len = len(train_dataset)
+        self.test_data_len = len(test_dataset)
+
         self.stats = {'loss': float('+inf'),
                            'model_wt': copy.deepcopy(self.model.state_dict()),
                            'acc': 0,
                            'epoch': 0}
-        # self.best_model_wts = copy.deepcopy(self.model.state_dict())
+
 
 
     def one_epoch(self,phase):
         running_loss = 0.0
         cor_classify = 0.0
         i = 0
-        for input,label in self.data[phase]:
+        for input,label in self.data_loaders[phase]:
             if phase == 'train':
                 self.model.train()
                 torch.set_grad_enabled(True)
@@ -45,9 +52,6 @@ class Trainer():
                 self.model.eval()
                 torch.set_grad_enabled(False)
 
-            input = torch.from_numpy(input)
-            label = torch.from_numpy(np.array([label]))
-            input = input.view(1,1,input.shape[0],input.shape[1])
             input = input.to(self.device)
             label = label.to(self.device)
 
@@ -136,12 +140,17 @@ def main():
     optimizer = optim.SGD(model.parameters(),lr=learning_rate)
     criterion = nn.MSELoss(reduction='mean')
     scheduler = lr_scheduler.StepLR(optimizer,step_size=10,gamma=0.1)
+
+    ## Initialize datasets path and dataloader parameters
+    path = "nina_data/all_6C_data_1.npy"
+    params = {'batch_size': 4, 'shuffle': True,'num_workers': 4}
+
     ## Initialize network trainer class
-    nt = Trainer(model,optimizer,criterion,device)
+    nt = Trainer(model,optimizer,criterion,device,path,params)
 
     ## Train and test network
-    nt.train(val_train=True)
-    tl, ta = nt.test(use_best_wt=True,1)
+    # nt.train(val_train=True)
+    tl, ta = nt.test(use_best_wt=True, epoch=1)
 
 
 if __name__ == '__main__':
