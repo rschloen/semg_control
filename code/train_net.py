@@ -56,7 +56,7 @@ class Trainer():
             label = label.to(self.device)
 
             output = self.model(input)
-            loss = self.criterion(output,label.float())
+            loss = self.criterion(output,label)#.float())
             running_loss += loss.item()
 
             if phase == 'train':
@@ -68,7 +68,11 @@ class Trainer():
                 self.optimizer.step()
 
             #Does prediction == actual class?
-            cor_classify += (torch.argmax(output,dim=1) == torch.argmax(label)).sum().item()
+            # print(torch.argmax(output,dim=1))
+            # print(torch.argmax(label))
+            # print((torch.argmax(output,dim=1) == torch.argmax(label)).sum().item())
+            # return
+            cor_classify += (torch.argmax(output,dim=1) == torch.argmax(label,dim=1)).sum().item()
             i+=1
 
         return running_loss, cor_classify
@@ -151,7 +155,7 @@ def main():
     ## Train and test network
     # nt.train(val_train=True)
     tl, ta = nt.test(use_best_wt=True, epoch=1)
-
+    # nt.test(use_best_wt=True, epoch=1)
 
 if __name__ == '__main__':
     main()
