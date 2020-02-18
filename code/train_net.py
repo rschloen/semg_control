@@ -16,6 +16,7 @@ from semg_network import Network, Network_enhanced
 from data_loader import SEMG_Dataset
 
 
+
 class Trainer():
     def __init__(self,model,optimizer,criterion,device,data_path,loader_params,scheduler=None,epochs=25):
         self.model = model
@@ -29,15 +30,20 @@ class Trainer():
         val_dataset = SEMG_Dataset(data_path,'val')
         test_dataset = SEMG_Dataset(data_path,'test')
         self.data_loaders = {'train':data.DataLoader(train_dataset,**loader_params),
-                              'val':data.DataLoader(val_dataset,**loader_params),
-                              'test':data.DataLoader(test_dataset,**loader_params)}
+                              'val':data.DataLoader(val_dataset,batch_size=loader_params['batch_size'], shuffle=False,num_workers=loader_params['num_workers']),
+                              'test':data.DataLoader(test_dataset,batch_size=loader_params['batch_size'], shuffle=False,num_workers=loader_params['num_workers'])}
         self.data_lens = {'train':len(train_dataset),'val':len(val_dataset),'test':len(test_dataset)}
 
-        self.stats = {'loss': float('+inf'),
+        self.stats = {'train':{'loss': float('+inf'),
+                           'model_wt': copy.deepcopy(self.model.state_dict()),
+                           'acc': 0,
+                           'epoch': 0,},
+                      'val':{'loss': float('+inf'),
                            'model_wt': copy.deepcopy(self.model.state_dict()),
                            'acc': 0,
                            'epoch': 0,
-                           }
+                           }}
+        self.loss_hist = {'train':[] ,'val':[]}
 
 
 
@@ -58,9 +64,10 @@ class Trainer():
             label = label.to(self.device)
 
             output = self.model(input)
-            loss = self.criterion(output,label.float())
+            # print(output.size())
+            loss = self.criterion(output,torch.argmax(label,dim=1))
             running_loss += loss.item()
-
+            # return
             if phase == 'train':
                 loss.backward()
                 self.optimizer.step()
@@ -82,12 +89,12 @@ class Trainer():
             e_loss /= self.data_lens['train']
             e_acc = (e_classify/self.data_lens['train'])*100
             print("Epoch: {}/{}\nPhase: Train  Loss: {:.8f}    Accuracy: {:.4f}".format(epoch,self.max_epochs,e_loss,e_acc))
-
+            self.loss_hist['train'].append(e_loss)
             if val_train:
                 t_loss, t_acc = self.test(False,epoch)
                 print("Phase: Validation    Loss: {:.8f}    Accuracy: {:.4f}".format(t_loss,t_acc))
-            elif e_loss < self.stats['loss']:
-                self.stats = {'loss': e_loss,
+            if e_loss < self.stats['train']['loss']:
+                self.stats['train'] = {'loss': e_loss,
                                    'model_wt': copy.deepcopy(self.model.state_dict()),
                                    'acc': e_acc,
                                    'epoch': epoch}
@@ -102,7 +109,8 @@ class Trainer():
                 self.scheduler.step()
 
         print("Training Summary:")
-        print("Best epoch was {} of {} with Loss: {:.8f}    Accuracy: {:.4f}".format(self.stats['epoch'],epoch,self.stats['loss'],self.stats['acc']))
+        print("Best Training epoch was {} of {} with Loss: {:.8f}    Accuracy: {:.4f}".format(self.stats['train']['epoch'],epoch,self.stats['train']['loss'],self.stats['train']['acc']))
+        print("Best Validation epoch was {} of {} with Loss: {:.8f}    Accuracy: {:.4f}".format(self.stats['val']['epoch'],epoch,self.stats['val']['loss'],self.stats['val']['acc']))
         total_time = time.time() - since
         print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
 
@@ -110,14 +118,16 @@ class Trainer():
         set = 'val'
         if use_best_wt:
             print("Testing with best weights...")
-            self.model.load_state_dict(self.stats['model_wt'])
+            self.model.load_state_dict(self.stats['train']['model_wt'])
             set = 'test'
 
         test_loss, test_correct = self.one_epoch(set)
         test_loss /= self.data_lens[set]
         test_acc = (test_correct/self.data_lens[set])*100
-        if test_loss < self.stats['loss'] and not use_best_wt:
-            self.stats = {'loss': test_loss,
+        self.loss_hist['val'].append(test_loss)
+
+        if test_loss < self.stats['val']['loss'] and not use_best_wt:
+            self.stats['val'] = {'loss': test_loss,
                                'model_wt': copy.deepcopy(self.model.state_dict()),
                                'acc': test_acc,
                                'epoch': epoch}
@@ -128,31 +138,58 @@ class Trainer():
             print("    Accuracy: {:.4f}".format(test_acc))
         return test_loss, test_acc
 
+    def plot_loss(self):
+        fig = plt.figure()
+        ax = fig.gca()
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.title('Loss History')
+        x = np.arange(1,len(self.loss_hist['train'])+1)
+        train, = plt.plot(x,self.loss_hist['train'],'k')
+        val, = plt.plot(x,self.loss_hist['val'],'r')
+        plt.legend((train,val),('Training','Validation'))
+
+
 
 def main():
+    test_only = False
+    save_model = False
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     ## Initialize model
     # model = Network(6)
-    model = Network_enhanced(6)
+    model = Network_enhanced(7)
 
     ## Initialize hyperparameters and supporting functions
     learning_rate = 0.002
     optimizer = optim.SGD(model.parameters(),lr=learning_rate)
-    criterion = nn.MSELoss(reduction='sum')
+    # optimizer = optim.Adam(model.parameters(),lr=learning_rate)
+    # criterion = nn.MSELoss(reduction='sum')
+    criterion = nn.CrossEntropyLoss(reduction='sum')
     scheduler = lr_scheduler.StepLR(optimizer,step_size=10,gamma=0.1)
 
     ## Initialize datasets path and dataloader parameters
-    # path = "nina_data/all_6C_data_1.npy"
     path = "nina_data/all_7C_data_1"
-    params = {'batch_size': 10, 'shuffle': True,'num_workers': 4}
+    params = {'batch_size': 4, 'shuffle': True,'num_workers': 4}
 
     ## Initialize network trainer class
-    nt = Trainer(model,optimizer,criterion,device,path,params,epochs=100)
+    nt = Trainer(model,optimizer,criterion,device,path,params,epochs=50)
 
-    ## Train and test network
-    nt.train(val_train=True)
-    tl, ta = nt.test(use_best_wt=True, epoch=1)
-    # nt.test(use_best_wt=True, epoch=1)
+    if not test_only:
+        ## Train and test network
+        nt.train(val_train=True)
+        tl, ta = nt.test(use_best_wt=True, epoch=1)
+        if save_model:
+            torch.save(nt.stats['train']['model_wt'],path+'_SGD_cross.pt')
+        # nt.test(use_best_wt=True, epoch=1)
+        nt.plot_loss()
+        plt.show(block=True)
+
+    elif test_only:
+        nt.stats['train']['model_wt'] = torch.load(path+'.pt')
+        tl,ta = nt.test(use_best_wt=True,epoch=1)
+
+
 
 if __name__ == '__main__':
     main()
