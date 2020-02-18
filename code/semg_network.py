@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import copy
-from scipy.io import loadmat
-from statistics import mode
+
 
 
 plt.ion()   # interactive mode
@@ -48,7 +47,7 @@ class Network_enhanced(nn.Module):
         super(Network_enhanced,self).__init__()
         self.conv1 = nn.Conv2d(1,32,(5,3))
         self.conv2 = nn.Conv2d(32,64,(5,3))
-        self.fc1 = nn.Linear(1024,num_classes)
+        self.fc1 = nn.Linear(1024,500)
         self.fc2 = nn.Linear(500,num_classes)
         self.pool = nn.MaxPool2d((3,1))
         self.BN1 = nn.BatchNorm2d(32)
@@ -65,7 +64,7 @@ class Network_enhanced(nn.Module):
         #prelu
         x = self.prelu(x)
         #dropout
-        x = self.drop(x)
+        # x = self.drop(x)
         #max pooling 3x1
         x = self.pool(x)
         # print(x.shape)
@@ -77,7 +76,7 @@ class Network_enhanced(nn.Module):
         #prelu
         x = self.prelu(x)
         #dropout
-        x = self.drop(x)
+        # x = self.drop(x)
         #max pooling 3x1
         x = self.pool(x)
         # print(x.shape)
@@ -89,84 +88,84 @@ class Network_enhanced(nn.Module):
         #batch normalization
         # x = self.BN3(x)
         # # #prelu
-        # x = self.prelu(x)
+        x = self.prelu(x)
         # # # #dropout
         # x = self.drop(x)
         # #
-        # x = self.fc2(x)
+        x = self.fc2(x)
         #softmax
         return F.softmax(x,dim=1)
 
 
-def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
-    """Modified example from pytorch tutorials, Author: Sasank Chilamkurthy"""
-    since = time.time()
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-    best_model_wts = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
-    prev_loss = 0
-    loss_cnt = 0
-    for epoch in range(num_epochs):
-        print('Epoch {}/{}'.format(epoch,num_epochs-1))
-        print('-'*10)
-        print(scheduler.get_lr())
-        for phase in ['train','eval']:
-            if phase == 'train':
-                model.train()
-            else:
-                model.eval()
-            running_loss = 0.0
-            running_correct = 0
-            counter = 0
-            for input, label in data[phase]:
-                input = torch.from_numpy(input)
-                label = torch.from_numpy(np.array([label]))
-                input = input.view(1,1,input.shape[0],input.shape[1])
-                input = input.to(device)
-                label = label.to(device)
-                optimizer.zero_grad()
-
-                with torch.set_grad_enabled(phase == 'train'):
-                    output = model(input)
-                    prediction = torch.argmax(output,dim=1)
-                    # print(output.size())
-                    # loss = F.nll_loss(output,torch.tensor([torch.argmax(label)]))
-                    loss = criterion(output,label.float())
-
-
-                    if phase == 'train':
-                        loss.backward()
-                        optimizer.step()
-                # print(list(model.parameters())[0].grad)
-                running_loss += loss.item() * input.size(0)
-                '''Add early stopping: if change in loss less than ... x times, stop.
-                Useful check if updating properly as well'''
-                if (running_loss - prev_loss) < 1e-6: loss_cnt += 1
-                if loss_cnt > 5: break
-                prev_loss = running_loss
-                # print(torch.argmax(labels))
-                # print(prediction == torch.argmax(labels))
-                running_correct +=  torch.sum(prediction == torch.argmax(label))  #torch.sum mainly acts to put value in correct type/format
-                if counter % 2000 == 1999:
-                    print('{} Loss: {:.4f}'.format(phase,running_loss/counter))
-                    print(list(model.parameters())[0].grad)
-                    counter = 0
-                    running_loss = 0.0
-                counter += 1
-            if phase == 'train':
-                scheduler.step()
-            epoch_loss = running_loss/len(data[phase])
-            epoch_acc = (running_correct.double()/len(data[phase]))*100 #percent
-
-            if phase == 'eval' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
-            print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,epoch_acc))
-    total_time = time.time() - since
-    print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
-    model.load_state_dict(best_model_wts)
-    return model
+# def train_model(model,criterion,optimizer,scheduler,data,num_epochs=10):
+#     """Modified example from pytorch tutorials, Author: Sasank Chilamkurthy"""
+#     since = time.time()
+#     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+#
+#     best_model_wts = copy.deepcopy(model.state_dict())
+#     best_acc = 0.0
+#     prev_loss = 0
+#     loss_cnt = 0
+#     for epoch in range(num_epochs):
+#         print('Epoch {}/{}'.format(epoch,num_epochs-1))
+#         print('-'*10)
+#         print(scheduler.get_lr())
+#         for phase in ['train','eval']:
+#             if phase == 'train':
+#                 model.train()
+#             else:
+#                 model.eval()
+#             running_loss = 0.0
+#             running_correct = 0
+#             counter = 0
+#             for input, label in data[phase]:
+#                 input = torch.from_numpy(input)
+#                 label = torch.from_numpy(np.array([label]))
+#                 input = input.view(1,1,input.shape[0],input.shape[1])
+#                 input = input.to(device)
+#                 label = label.to(device)
+#                 optimizer.zero_grad()
+#
+#                 with torch.set_grad_enabled(phase == 'train'):
+#                     output = model(input)
+#                     prediction = torch.argmax(output,dim=1)
+#                     # print(output.size())
+#                     # loss = F.nll_loss(output,torch.tensor([torch.argmax(label)]))
+#                     loss = criterion(output,label.float())
+#
+#
+#                     if phase == 'train':
+#                         loss.backward()
+#                         optimizer.step()
+#                 # print(list(model.parameters())[0].grad)
+#                 running_loss += loss.item() * input.size(0)
+#                 '''Add early stopping: if change in loss less than ... x times, stop.
+#                 Useful check if updating properly as well'''
+#                 if (running_loss - prev_loss) < 1e-6: loss_cnt += 1
+#                 if loss_cnt > 5: break
+#                 prev_loss = running_loss
+#                 # print(torch.argmax(labels))
+#                 # print(prediction == torch.argmax(labels))
+#                 running_correct +=  torch.sum(prediction == torch.argmax(label))  #torch.sum mainly acts to put value in correct type/format
+#                 if counter % 2000 == 1999:
+#                     print('{} Loss: {:.4f}'.format(phase,running_loss/counter))
+#                     print(list(model.parameters())[0].grad)
+#                     counter = 0
+#                     running_loss = 0.0
+#                 counter += 1
+#             if phase == 'train':
+#                 scheduler.step()
+#             epoch_loss = running_loss/len(data[phase])
+#             epoch_acc = (running_correct.double()/len(data[phase]))*100 #percent
+#
+#             if phase == 'eval' and epoch_acc > best_acc:
+#                 best_acc = epoch_acc
+#                 best_model_wts = copy.deepcopy(model.state_dict())
+#             print('{} Loss: {:.4f} Acc: {:.4f}'.format(phase,epoch_loss,epoch_acc))
+#     total_time = time.time() - since
+#     print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
+#     model.load_state_dict(best_model_wts)
+#     return model
 
 
 def main():
@@ -182,48 +181,7 @@ def main():
     criterion = nn.MSELoss(reduction='mean')
     exp_lr_scheduler = lr_scheduler.StepLR(optimizer,step_size=3,gamma=0.1)
 
-    ## Load and combine data from all subjects
-    x = loadmat('/home/rschloen/WinterProj/ninapro_data/s1/S1_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
-    emg_data = x['emg'] #first 8 columns are from myo closest to elbow, next 8 are from second myo rotated 22 degs
-    restim = x['restimulus'] #restimulus and rerepetition are the corrected indexes for the movements
-    rep = x['rerepetition'] #6 repetitions per gesture
-    for i in range(2,11):
-        x = loadmat('/home/rschloen/WinterProj/ninapro_data/s'+str(i)+'/S'+str(i)+'_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
-        emg_data = np.vstack((emg_data,x['emg']))
-        restim = np.vstack((restim,x['restimulus']))
-        rep = np.vstack((rep,x['rerepetition']))
-    # print(emg_data.shape)
 
-    ## Initialize sampling parameters
-    ## Want a 260ms window (52 samples) of all eight channels as inputs with 235ms overlap (from paper)
-    window_size = 52 #samples, 260ms
-    overlap = 47 #sample, 235ms
-    step = window_size - overlap
-    i = 0
-    data = {'train':[],'eval':[]}
-    map = [(1,np.array([0,1,0,0,0,0])),(3,np.array([0,0,1,0,0,0])),(5,np.array([0,0,0,1,0,0])),(7,np.array([0,0,0,0,1,0])),(12,np.array([0,0,0,0,0,1]))]
-
-    ## Sort and label it for training/validation
-    while i < len(emg_data)-window_size:
-        if np.random.randint(1,11) < 8:
-            set = 'train'
-        else:
-            set = 'eval'
-        label = mode(list(restim[i:i+window_size][0]))
-        ## Normalize Data??
-        emg_win = emg_data[i:i+window_size,:8]
-        norm_emg = (emg_win - np.mean(emg_win))/(np.std(emg_win))
-        if label == 0:
-            if np.random.randint(6) == 1: #only save about fifth of the rest states
-                data[set].append([norm_emg,np.array([1,0,0,0,0,0])])
-        else:
-            for act, new in map:
-                if label == act:
-                    data[set].append([norm_emg,new])
-        i += step
-
-
-    np.save("nina_data/all_6C_data_1.npy",data)
 
     # print(type(data))
 
@@ -241,9 +199,6 @@ def main():
     # print((len(data['train'])+len(data['eval'])))
     # print((len(data['train'])+len(data['eval']))*.8)
     # print((len(data['train'])+len(data['eval']))*.2)
-
-    ## Train model
-    # best_model = train_model(model,criterion,optimizer,exp_lr_scheduler,data)
 
 
 
