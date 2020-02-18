@@ -48,6 +48,13 @@ class Trainer():
 
 
     def one_epoch(self,phase):
+        '''Iterates through dataset to complete ONE epoch. Steps: pull sample(s) from data loader,
+        pass data through model, calculate loss, update weights, take a step for optimizer. Keeps track of
+        running loss and running correct classifications.
+        ARGS: phase: ('train','val','test') sets whether or not to use training specific
+        steps (enabling grad,loss.backward(),etc.)
+        RETURNS: running_loss: total loss over all data points
+                 cor_classify: number of correctly classified samples'''
         running_loss = 0.0
         cor_classify = 0.0
         i = 0
@@ -64,8 +71,8 @@ class Trainer():
             label = label.to(self.device)
 
             output = self.model(input)
-            # print(output.size())
-            loss = self.criterion(output,torch.argmax(label,dim=1))
+            # loss = self.criterion(output,label.float()) # for MSE
+            loss = self.criterion(output,torch.argmax(label,dim=1)) # for CrossEntropyLoss
             running_loss += loss.item()
             # return
             if phase == 'train':
@@ -80,6 +87,9 @@ class Trainer():
 
 
     def train(self,val_train=True):
+        '''Controls Training loop: runs set number of epochs and calculates/prints/saves stats for training/validation
+        phases. Checks change in epoch loss for early stopping due to plateau.
+        ARGS: val_train: True/False (defualt:True) denotes whether to run validation phase or not '''
         since = time.time()
         prev_loss = 0
         loss_cnt = 0
@@ -115,6 +125,12 @@ class Trainer():
         print('Training completed in {:.0f}m {:.0f}s'.format(total_time//60,total_time%60))
 
     def test(self,use_best_wt,epoch):
+        '''Can be used for either validation phase during training or testing on trained model. When one_epoch
+        function is called, passes argument to put model in eval mode and disable grad.
+        ARGS: use_best_wt: True/False denotes whether its a validation or testing phase.
+              epoch: current epoch, used in printing and saving stats for validation Phase
+        RETURNS: test_loss: validation or testing epoch loss
+                 test_acc: validation or testing epoch accuracy'''
         set = 'val'
         if use_best_wt:
             print("Testing with best weights...")
@@ -139,6 +155,7 @@ class Trainer():
         return test_loss, test_acc
 
     def plot_loss(self):
+        '''Plot training and validation loss for each epoch'''
         fig = plt.figure()
         ax = fig.gca()
         plt.xlabel('Epochs')
