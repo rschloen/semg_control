@@ -9,9 +9,29 @@ from statistics import mode
 
 
 class SEMG_Dataset(data.Dataset):
-    def __init__(self,path,mode):
+    def __init__(self,path,mode,fold):
         all_data = np.load(path+'.npy',allow_pickle='TRUE').item()
-        self.data = all_data[mode]
+        num_folds = 10.
+        rng = int(len(all_data['train'])/num_folds)
+        # print(rng)
+        # print(rng*fold)
+        # print(rng*(fold+1))
+        self.val_data = all_data['train'][rng*fold:rng*(fold+1)]
+        self.train_data = all_data['train']
+        # print(len(self.train_data))
+        del self.train_data[rng*fold:rng*(fold+1)]
+        # print(len(self.train_data))
+        self.test_data = all_data['test']
+
+        if mode == 'train':
+            self.data = self.train_data[:]
+        elif mode == 'test':
+            self.data = self.test_data[:]
+        elif mode == 'val':
+            self.data = self.val_data[:]
+
+
+
 
     def __len__(self):
         return len(self.data)
@@ -61,10 +81,10 @@ if __name__ == '__main__':
         while i < len(emg_data)-window_size:
             # Split all data into either training(80%), validation(10%), or testing(10%)
             if np.random.randint(1,11) < 9:
-                if np.random.randint(1,11) < 9:
-                    set = 'train'
-                else:
-                    set = 'val'
+                # if np.random.randint(1,11) < 9:
+                set = 'train'
+                # else:
+                    # set = 'val'
             else:
                 set = 'test'
 
@@ -90,12 +110,15 @@ if __name__ == '__main__':
 
     else:
         ## Test distribution of
-        path = "nina_data/all_7C_data_1"
+        path = "nina_data/all_7C_data_2"
         f = open(path+'.txt','w')
         modes = ['train','val','test']
+        tot = []
+        data_len = 0
+        # prev_dataset = SEMG_Dataset(path,'train',0)
         for phase in modes:
-            f.write("Data subset: "+phase+"\n")
-            dataset = SEMG_Dataset(path,phase)
+            dataset = SEMG_Dataset(path,phase,0)
+            data_len += len(dataset)
             params = {'batch_size': 10, 'shuffle': True,'num_workers': 4}
             train_loader = data.DataLoader(dataset, **params)
             test = [0,1,2,3,4,5,6]
@@ -114,4 +137,10 @@ if __name__ == '__main__':
             for c in test:
                 print("Class {} has {} samples".format(c+1,res[c]))
                 f.write("Class {} has {} samples\n".format(c+1,res[c]))
+            tot.append(c1+c2+c3+c4+c5+c6+c7)
+
+        print('Total training samples: {}, {:.4f}%'.format(tot[0],(tot[0]/data_len)*100))
+        f.write('Total training samples: {}, {:.4f}%'.format(tot[0],(tot[0]/data_len)*100))
+        print('Total testing samples: {}, {:.4f}%'.format(tot[2],(tot[2]/data_len)*100))
+        f.write('Total testing samples: {}, {:.4f}%'.format(tot[2],(tot[2]/data_len)*100))
         f.close()
