@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 '''
 	Original by dzhu
@@ -9,6 +9,8 @@
 
     Edited by Alvaro Villoslada (Alvipe)
         https://github.com/Alvipe/myo-raw
+
+    Edited by Robert Schloen
 '''
 
 
@@ -426,8 +428,10 @@ class MyoRaw(object):
 if __name__ == '__main__':
     try:
         import pygame
+        print(pygame.__version__)
         from pygame.locals import *
         HAVE_PYGAME = True
+        pygame.init()
     except ImportError:
         HAVE_PYGAME = False
 
@@ -437,7 +441,7 @@ if __name__ == '__main__':
     print(str(HAVE_PYGAME))
     last_vals = None
 
-    with open('raw_emg_3.csv', mode='w') as emg_file, open('raw_emg_gesture_3.csv',mode='w') as gesture_file:
+    with open('myo_rec_data/raw_emg_JRS_7C_2.csv', mode='w') as emg_file, open('myo_rec_data/gesture_JRS_7C_2.csv',mode='w') as gesture_file:
         emg_writer = csv.writer(emg_file, delimiter=',')
         emg_gesture_writer = csv.writer(gesture_file, delimiter=',')
 
@@ -472,26 +476,36 @@ if __name__ == '__main__':
         def proc_emg(emg, moving, times=[]):
             if HAVE_PYGAME:
                 ## update pygame display
-                plot(scr, [e / 500. for e in emg])
+                plot(scr, [e / 500. for e in emg]) # NEED TO BE ON THIS WINDOW FOR THE KEY PRESS TO WORK!!!!!!!!
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_1]: #element will be 1
+                    print('1')
                     emg_gesture_writer.writerow((1,))
 
-                elif keys[pygame.K_2]: #element will be 1
+                elif keys[pygame.K_2]: #element will be 2
+                    print('2')
                     emg_gesture_writer.writerow((2,))
 
-                elif keys[pygame.K_3]: #element will be 1
+                elif keys[pygame.K_3]: #element will be 3
+                    print('3')
                     emg_gesture_writer.writerow((3,))
 
-                elif keys[pygame.K_4]: #element will be 1
+                elif keys[pygame.K_4]: #element will be 4
+                    print('4')
                     emg_gesture_writer.writerow((4,))
 
-                elif keys[pygame.K_5]: #element will be 1
+                elif keys[pygame.K_5]: #element will be 5
+                    print('5')
                     emg_gesture_writer.writerow((5,))
+                elif keys[pygame.K_6]: #element will be 6
+                    print('6')
+                    emg_gesture_writer.writerow((6,))
                 else:
                     emg_gesture_writer.writerow((0,))
 
                 emg_writer.writerow(emg)
+                pygame.event.pump()
+
             else:
                 print(emg)
 

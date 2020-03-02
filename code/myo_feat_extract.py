@@ -6,13 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_emg(data,gesture):
+def plot_emg(data,gesture,path):
     fs = 200. #200Hz
     time = len(data)/fs #samples/(sample/second)
     x = np.linspace(0,time,len(data))
     fig = plt.figure()
     fig.text(0.5,0.04,'Time (seconds)',ha='center')
     fig.text(0.04,0.5,'au(-128,128)',va='center',rotation='vertical')
+    fig.text(0.5,0.95,'File set: '+path,ha='center')
     plt.xlim([0,time])
 
     ax1 = plt.subplot(9,1,1,title='Channel 1')
@@ -42,11 +43,11 @@ if __name__ == '__main__':
     # emg_array = np.array([])
     fs = 200. #200Hz
     # test_array = np.array([[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]])
-
-    emg_array = np.loadtxt('raw_emg_1.csv',delimiter=',')
-    gesture_array = np.loadtxt('raw_emg_gesture_1.csv',delimiter=',')
+    path = 'real_time'
+    emg_array = np.loadtxt('real_time_rec.csv',delimiter=',')
+    gesture_array = np.loadtxt('real_time_gest.csv',delimiter=',')
     # print(RMS(emg_array[:100]))
     # print(MAV(emg_array[:100]))
     time = len(emg_array)/fs #samples/(sample/second)
     # print(time)
-    plot_emg(emg_array,gesture_array)
+    plot_emg(emg_array,gesture_array,path=path)
