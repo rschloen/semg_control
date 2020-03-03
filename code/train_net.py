@@ -105,8 +105,8 @@ class Trainer():
         folds = 1
         for f in range(folds):
             self.data_loaders = {'train':data.DataLoader(SEMG_Dataset(self.path,'train',f),**self.params),
-                                  'val':data.DataLoader(SEMG_Dataset(self.path,'val',f),batch_size=self.params['batch_size'], shuffle=False,num_workers=self.params['num_workers']),
-                                  'test':data.DataLoader(SEMG_Dataset(self.path,'test',f),batch_size=self.params['batch_size'], shuffle=False,num_workers=self.params['num_workers'])}
+                                  'val':data.DataLoader(SEMG_Dataset(self.path,'val',f),**self.params),
+                                  'test':data.DataLoader(SEMG_Dataset(self.path,'test',f),**self.params)}
             print("Fold {} of {}".format(f+1,folds))
             self.loss_cnt = 0
             self.model.load_state_dict(self.og_wt)
@@ -154,6 +154,7 @@ class Trainer():
             self.f.write("Best Validation epoch was {} of {} in fold {} with Loss: {:.8f}    Accuracy: {:.4f}\n".format(vl_ind,epoch,0,self.loss_hist['val'][vl_ind],self.acc_hist['val'][vl_ind]))
             total_time = time.time() - since
             self.f.write('Training completed in {:.0f}m {:.0f}s\n'.format(total_time//60,total_time%60))
+        total_time = time.time() - since
         print('Training completed in {:.0f}m {:.0f}s\n'.format(total_time//60,total_time%60))
 
 
@@ -353,13 +354,13 @@ def hyperparam_selection(test_only,save_md):
     f.close()
 
 
-def best_model_params(model):
+def best_model_params(model,path):
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print('Device: {}'.format(device))
-    dir = 'nina_data/'
-    file = 'all_7C_data_3'
-    path = dir+file
-    f = open(path+'_stats_adamw_best.txt','w')
+    # dir = 'nina_data/'
+    # file = 'all_7C_data_comb'
+    # path = dir+file
+    # f = open(path+'_stats_adamw_best.txt','w')
     params = {'batch_size': 100, 'shuffle': True,'num_workers': 4}
     criterion = nn.MSELoss(reduction='mean')
     rates = np.logspace(-2.0,-4.0,20)
@@ -369,10 +370,10 @@ def best_model_params(model):
     # lr = rates[2] # for sdg
     lr = rates[10] # for adamw
     dec = decay[2] # for adamw
-    f.write('AdamW:\nLearning Rate: {}, Momentum: Defualt, Weight Decay:{}\n'.format(lr,dec))
+    # f.write('AdamW:\nLearning Rate: {}, Momentum: Defualt, Weight Decay:{}\n'.format(lr,dec))
     # f.write('Repeat layer {} times\n'.format(model.repeat))
     optimizer = optim.AdamW(model.parameters(),lr=lr,weight_decay=dec)
-    nt = Trainer(model,optimizer,criterion,device,path,params,f,epochs=100)
+    nt = Trainer(model,optimizer,criterion,device,path,params,epochs=500)
     return nt
 
 
@@ -395,19 +396,22 @@ def main():
     if save_md:
         print("Saving model")
 
-    all_tl = []
+    # all_tl = []
+    dir = 'nina_data/'
+    file = 'all_7C_data_comb_no_norm'
+    path = dir+file
     # for i in range(5):
     model = Network_enhanced(7)
-    net = best_model_params(model)
+    net = best_model_params(model,path)
     # print('Repeat layer {} times\n'.format(model.repeat))
     ## Train and test network
     net.train(val_train=True)
     tl, ta = net.test(use_best_wt=True, epoch=1)
     if save_md:
-        torch.save(nt.wt_hist['val'][np.argmin(nt.loss_hist['val'])],path+'_adamw_best.pt')
+        torch.save(net.wt_hist['val'][np.argmin(net.loss_hist['val'])],path+'_adamw_best.pt')
 
     plot_path = file+'_adamw_best'
-    nt.plot_loss(plot_path,save_md)
+    net.plot_loss(plot_path,save_md)
     # all_tl.append(tl)
     # print("Best test: {}, with loss: {:.8f}. Therefore best number of repeatitions is {}".format(np.argmin(all_tl),np.min(all_tl),np.argmin(all_tl)))
     # net.f.write("Best test: {}, with loss: {:.8f}. Therefore best number of repeatitions is {}".format(np.argmin(all_tl),np.min(all_tl),np.argmin(all_tl)))
