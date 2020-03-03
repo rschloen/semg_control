@@ -45,9 +45,8 @@ class Network_enhanced(nn.Module):
     def __init__(self,num_classes):
         super(Network_enhanced,self).__init__()
         self.conv1_1 = nn.Conv2d(1,32,(5,3))
-        self.conv1_2 = nn.Conv2d(32,32,(5,3),padding=(2,1))
         self.conv2_1 = nn.Conv2d(32,64,(5,3)) #changed kernel from 5,3
-        self.conv2_2 = nn.Conv2d(64,64,(3,1),padding=(2,1))
+        # self.conv3 = nn.Conv2d(64,64,(5,3))
         self.fc1 = nn.Linear(1024,512) #changed 768 from 1024
         self.fc2 = nn.Linear(512,128)
         self.fc3 = nn.Linear(128,num_classes)
@@ -67,13 +66,7 @@ class Network_enhanced(nn.Module):
         x = self.BN1(x)
         #prelu
         x = self.prelu(x)
-        # for i in range(self.repeat):
-        #     x = self.conv1_2(x)
-        #     #batch normalization
-        #     x = self.BN1(x)
-        #     #prelu
-        #     x = self.prelu(x)
-        #     # x = self.drop(x)
+        # x = self.drop(x)
 
         #max pooling 3x1
         x = self.pool(x)
@@ -83,23 +76,16 @@ class Network_enhanced(nn.Module):
         x = self.BN2(x)
         #prelu
         x = self.prelu(x)
-        # print(x.shape)
-        #convlution 2 to 64 feature maps, 3x5 kernel
-        # for i in range(self.repeat):
-        #     x = self.conv2_2(x)
-        #     # print(x.shape)
-        #     #batch normalization
-        #     x = self.BN2(x)
-        #     #prelu
-        #     x = self.prelu(x)
-        #     # print(x.shape)
-        #     # if i%2 == 0:
-        #         # dropout
-        #     # x = self.drop(x)
+        x = self.drop(x)
+        # x = self.conv3(x)
+        # x = self.BN2(x)
+        # x = self.prelu(x)
+
 
         #max pooling 3x1
         x = self.pool(x)
         # print(x.shape)
+
         x = torch.flatten(x,1)
         # print(x.shape)
         #fully connected layer
@@ -109,12 +95,11 @@ class Network_enhanced(nn.Module):
         #batch normalization
         # x = self.BN3(x)
         # # #prelu
-        # x = self.prelu(x)
+        x = self.prelu(x)
         # # # #dropout
-        # x = self.drop(x)
         # #
         x = self.fc2(x)
-        # x= self.prelu(x)
+        x = self.prelu(x)
         # x = self.drop(x)
 
         x = self.fc3(x)

@@ -20,7 +20,7 @@ from data_loader import SEMG_Dataset
 
 
 class Trainer():
-    def __init__(self,model,optimizer,criterion,device,data_path,loader_params,file=None,scheduler=None,epochs=25,early_stop=True):
+    def __init__(self,model,optimizer,criterion,device,data_path,loader_params,file=None,scheduler=None,epochs=25,early_stop=False):
         self.model = model.to(device)#.float()
         self.optimizer = optimizer
         self.criterion = criterion
@@ -120,12 +120,6 @@ class Trainer():
                 if val_train:
                     t_loss, t_acc = self.test(False,epoch)
                     # print("Phase: Validation    Loss: {:.8f}    Accuracy: {:.4f}".format(t_loss,t_acc))
-                # if e_loss < self.stats['train']['loss']:
-                #     self.stats['train'] = {'loss': e_loss,
-                #                        'model_wt': copy.deepcopy(self.model.state_dict()),
-                #                        'acc': e_acc,
-                #                        'epoch': epoch,
-                #                        'fold':f}
 
                 if self.early_stop:
                     '''Add early stopping: if change in loss less than ... x times, stop.
@@ -370,7 +364,7 @@ def best_model_params(model,path):
     # f.write('AdamW:\nLearning Rate: {}, Momentum: Defualt, Weight Decay:{}\n'.format(lr,dec))
     # f.write('Repeat layer {} times\n'.format(model.repeat))
     optimizer = optim.AdamW(model.parameters(),lr=lr,weight_decay=dec)
-    nt = Trainer(model,optimizer,criterion,device,path,params,epochs=500)
+    nt = Trainer(model,optimizer,criterion,device,path,params,epochs=100)
     return nt
 
 
@@ -395,19 +389,20 @@ def main():
 
     # all_tl = []
     dir = 'nina_data/'
-    file = 'all_7C_data_comb_no_norm'
+    file = 'all_7C_data_comb'
     path = dir+file
     # for i in range(5):
     model = Network_enhanced(7)
     net = best_model_params(model,path)
     # print('Repeat layer {} times\n'.format(model.repeat))
+    net.max_epochs = 200
     ## Train and test network
     net.train(val_train=True)
     tl, ta = net.test(use_best_wt=True, epoch=1)
     if save_md:
-        torch.save(net.wt_hist['val'][np.argmin(net.loss_hist['val'])],path+'_adamw_best.pt')
+        torch.save(net.wt_hist['val'][np.argmin(net.loss_hist['val'])],path+'_drop50.pt')
 
-    plot_path = file+'_adamw_best'
+    plot_path = file+'_drop50'
     net.plot_loss(plot_path,save_md)
     # all_tl.append(tl)
     # print("Best test: {}, with loss: {:.8f}. Therefore best number of repeatitions is {}".format(np.argmin(all_tl),np.min(all_tl),np.argmin(all_tl)))
