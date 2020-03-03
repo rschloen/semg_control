@@ -441,7 +441,7 @@ if __name__ == '__main__':
     print(str(HAVE_PYGAME))
     last_vals = None
 
-    with open('myo_rec_data/raw_emg_JRS_7C_2.csv', mode='w') as emg_file, open('myo_rec_data/gesture_JRS_7C_2.csv',mode='w') as gesture_file:
+    with open('myo_rec_data/raw_emg_JRS_7C_3.csv', mode='w') as emg_file, open('myo_rec_data/gesture_JRS_7C_3.csv',mode='w') as gesture_file:
         emg_writer = csv.writer(emg_file, delimiter=',')
         emg_gesture_writer = csv.writer(gesture_file, delimiter=',')
 
