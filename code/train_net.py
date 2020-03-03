@@ -357,9 +357,6 @@ def hyperparam_selection(test_only,save_md):
 def best_model_params(model,path):
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print('Device: {}'.format(device))
-    # dir = 'nina_data/'
-    # file = 'all_7C_data_comb'
-    # path = dir+file
     # f = open(path+'_stats_adamw_best.txt','w')
     params = {'batch_size': 100, 'shuffle': True,'num_workers': 4}
     criterion = nn.MSELoss(reduction='mean')
