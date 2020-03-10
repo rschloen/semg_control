@@ -14,7 +14,7 @@ import os
 import copy
 import sys
 import argparse
-from semg_network import Network, Network_enhanced
+from semg_network import Network, Network_enhanced, Network_XL
 from data_loader import SEMG_Dataset
 
 
@@ -78,8 +78,8 @@ class Trainer():
             input = input.to(self.device)
             label = label.to(self.device)
             output = self.model(input)
-            loss = self.criterion(output,label.float()) # for MSE
-            # loss = self.criterion(output,torch.argmax(label,dim=1)) # for CrossEntropyLoss
+            # loss = self.criterion(output,label.float()) # for MSE
+            loss = self.criterion(output,torch.argmax(label,dim=1)) # for CrossEntropyLoss
             running_loss += loss.item()
             if phase == 'train':
                 loss.backward()
@@ -102,34 +102,37 @@ class Trainer():
         # loss_cnt = 0
         # prev_lr = self.scheduler.get_lr()
         print('Training...')
-        folds = 1
-        for f in range(folds):
-            self.data_loaders = {'train':data.DataLoader(SEMG_Dataset(self.path,'train',f),**self.params),
-                                  'val':data.DataLoader(SEMG_Dataset(self.path,'val',f),**self.params),
-                                  'test':data.DataLoader(SEMG_Dataset(self.path,'test',f),**self.params)}
-            print("Fold {} of {}".format(f+1,folds))
-            self.loss_cnt = 0
-            self.model.load_state_dict(self.og_wt)
-            for epoch in range(1,self.max_epochs+1):
-                e_loss, e_classify = self.one_epoch('train')
-                e_loss /= self.data_lens['train']
-                e_acc = (e_classify/self.data_lens['train'])*100
-                # print("Epoch: {}/{}\nPhase: Train  Loss: {:.8f}    Accuracy: {:.4f}".format(epoch,self.max_epochs,e_loss,e_acc))
-                self.loss_hist['train'].append(e_loss)
-                self.acc_hist['train'].append(e_acc)
-                if val_train:
-                    t_loss, t_acc = self.test(False,epoch)
-                    # print("Phase: Validation    Loss: {:.8f}    Accuracy: {:.4f}".format(t_loss,t_acc))
+        # folds = 1
+        # for f in range(folds):
+            # self.data_loaders = {'train':data.DataLoader(SEMG_Dataset(self.path,'train',f),**self.params),
+            #                       'val':data.DataLoader(SEMG_Dataset(self.path,'val',f),**self.params),
+            #                       'test':data.DataLoader(SEMG_Dataset(self.path,'test',f),**self.params)}
+            # print("Fold {} of {}".format(f+1,folds))
+        self.loss_cnt = 0
+        # self.model.load_state_dict(self.og_wt)
+        for epoch in range(1,self.max_epochs+1):
+            e_loss, e_classify = self.one_epoch('train')
+            e_loss /= self.data_lens['train']
+            e_acc = (e_classify/self.data_lens['train'])*100
+            # print("Epoch: {}/{}\nPhase: Train  Loss: {:.8f}    Accuracy: {:.4f}".format(epoch,self.max_epochs,e_loss,e_acc))
+            self.loss_hist['train'].append(e_loss)
+            self.acc_hist['train'].append(e_acc)
+            if val_train:
+                t_loss, t_acc = self.test(False,epoch)
+                # print("Phase: Validation    Loss: {:.8f}    Accuracy: {:.4f}".format(t_loss,t_acc))
 
-                if self.early_stop:
-                    '''Add early stopping: if change in loss less than ... x times, stop.
-                    Useful check if updating properly as well'''
-                    if abs(e_loss - prev_loss) < 1e-8: self.loss_cnt += 1 #or e_loss > prev_loss
-                    if self.loss_cnt > 20: break
-                    prev_loss = e_loss
-                self.wt_hist['train'].append(copy.deepcopy(self.model.state_dict()))
+            if self.early_stop:
+                '''Add early stopping: if change in loss less than ... x times, stop.
+                Useful check if updating properly as well'''
+                if abs(e_loss - prev_loss) < 1e-8:
+                    self.loss_cnt += 1 #or e_loss > prev_loss
+                else:
+                    self.loss_cnt = 0
+                if self.loss_cnt > 10: break
+                prev_loss = e_loss
+            self.wt_hist['train'].append(copy.deepcopy(self.model.state_dict()))
 
-                self.progress_bar(epoch)
+            self.progress_bar(epoch)
             # torch.save(self.stats['train']['model_wt'],self.path+'_{}_{}.pt'.format(f,epoch))
 
             # if self.scheduler != None:
@@ -149,6 +152,9 @@ class Trainer():
             total_time = time.time() - since
             self.f.write('Training completed in {:.0f}m {:.0f}s\n'.format(total_time//60,total_time%60))
         total_time = time.time() - since
+        print("Training Summary:\n")
+        print("\tBest Training epoch was {} of {} in fold {} with Loss: {:.8f}    Accuracy: {:.4f}\n".format(tl_ind,epoch,0,self.loss_hist['train'][tl_ind],self.acc_hist['train'][tl_ind]))
+        print("\tBest Validation epoch was {} of {} in fold {} with Loss: {:.8f}    Accuracy: {:.4f}\n".format(vl_ind,epoch,0,self.loss_hist['val'][vl_ind],self.acc_hist['val'][vl_ind]))
         print('Training completed in {:.0f}m {:.0f}s\n'.format(total_time//60,total_time%60))
 
 
@@ -164,7 +170,7 @@ class Trainer():
             print("Testing with best weights...")
             if len(self.wt_hist['val']) != 0:
                 self.model.load_state_dict(self.wt_hist['val'][np.argmin(self.loss_hist['val'])])
-                # print('history')
+                print('From history')
             else:
                 self.model.load_state_dict(self.stats['val']['model_wt'])
             set = 'test'
@@ -185,7 +191,10 @@ class Trainer():
         #                        'fold':f}
 
         if not use_best_wt and self.early_stop:
-            if abs(test_loss - self.prev_t_loss) < 1e-6: self.loss_cnt += 1
+            if abs(test_loss - self.prev_t_loss) < 1e-6:
+                self.loss_cnt += 1
+            else:
+                self.loss_cnt = 0
             # if loss_cnt > 5: self.stop == True
             self.prev_t_loss = test_loss
         if use_best_wt:
@@ -352,8 +361,9 @@ def best_model_params(model,path):
     device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
     print('Device: {}'.format(device))
     # f = open(path+'_stats_adamw_best.txt','w')
-    params = {'batch_size': 100, 'shuffle': True,'num_workers': 4}
+    params = {'batch_size': 1000, 'shuffle': True,'num_workers': 4}
     criterion = nn.MSELoss(reduction='mean')
+    criterion = nn.CrossEntropyLoss()
     rates = np.logspace(-2.0,-4.0,20)
     # mom = np.linspace(0.9,0.99,10) #best value was .092
     decay = np.logspace(-1,-4,20) #best was
@@ -389,20 +399,20 @@ def main():
 
     # all_tl = []
     dir = 'nina_data/'
-    file = 'all_7C_data_comb'
+    file = 'all_7C_data_comb_abs'
     path = dir+file
     # for i in range(5):
-    model = Network_enhanced(7)
+    model = Network_XL(7)
     net = best_model_params(model,path)
     # print('Repeat layer {} times\n'.format(model.repeat))
-    net.max_epochs = 200
+    net.max_epochs = 300
     ## Train and test network
     net.train(val_train=True)
     tl, ta = net.test(use_best_wt=True, epoch=1)
     if save_md:
-        torch.save(net.wt_hist['val'][np.argmin(net.loss_hist['val'])],path+'_drop50.pt')
+        torch.save(net.wt_hist['val'][np.argmin(net.loss_hist['val'])],path+'_XL_fc2.pt')
 
-    plot_path = file+'_drop50'
+    plot_path = file+'_XL_fc2'
     net.plot_loss(plot_path,save_md)
     # all_tl.append(tl)
     # print("Best test: {}, with loss: {:.8f}. Therefore best number of repeatitions is {}".format(np.argmin(all_tl),np.min(all_tl),np.argmin(all_tl)))
