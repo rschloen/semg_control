@@ -12,8 +12,9 @@ import os
 from scipy.io import loadmat
 from semg_network import Network_XL, Network_enhanced
 from data_loader import SEMG_Dataset,window_data
-from train_net import Trainer
+from train_net import Trainer, best_model_params
 import argparse, sys, csv
+import pnn_train as pnn
 
 
 
@@ -54,13 +55,19 @@ if __name__ == '__main__':
                 count += .5
         # print(int(count))
         count -= 1
-        first_activity = most_active('myo_rec_data/raw_emg_'+path+'1.csv')
+        first_activity =  most_active('myo_rec_data/raw_emg_'+path+'1.csv')
+        # first_activity = most_active('nina_data/combined_emg_data.csv')
         print('Target channel {}'.format(first_activity))
+
+        count = 1
         for i in range(int(count)):
             # print(first_activity)
-            temp_arr = np.loadtxt('myo_rec_data/raw_emg_'+path+'{}.csv'.format(i+1),delimiter=',')
+            emg_array = np.zeros((1,8))
+            gesture_array = np.array([])
+            # temp_arr = np.loadtxt('myo_rec_data/raw_emg_'+path+'{}.csv'.format(i+1),delimiter=',')
+            temp_arr = np.loadtxt('myo_rec_data/raw_emg_JRS_7C_testing.csv',delimiter=',')
             active_chan = most_active(temp_arr)
-            print('File {} most active channel {}'.format(i,active_chan))
+            # print('File {} most active channel {}'.format(i,active_chan))
             # print(temp_arr[:10])
             shifted_array = circle_shift(temp_arr,active_chan,first_activity)
             # print(shifted_array[:10])
@@ -71,8 +78,8 @@ if __name__ == '__main__':
         emg_array = np.delete(emg_array,0,0)
         # emg_array = np.loadtxt('myo_rec_data/raw_emg_JRS_7C_testing.csv',delimiter=',')
         # gesture_array = np.loadtxt('myo_rec_data/gesture_JRS_7C_testing.csv',delimiter=',')
-        new_path = 'myo_rec_data/win_JRS_7C_comb7_shifted'
-        with open('myo_rec_data/win_JRS_7C_comb7_shifted_stats.txt','w') as real_time:#, open('real_time_gest.csv','w') as real_gest:
+        new_path = 'myo_rec_data/win_JRS_7C_testing_shifted'.format(i)
+        with open('myo_rec_data/win_JRS_7C_testing_shifted_stats.txt','w') as real_time:#, open('real_time_gest.csv','w') as real_gest:
             stat_writer = csv.writer(real_time, delimiter=',')
             mean_emg = np.mean(emg_array)
             std_emg = np.std(emg_array)
@@ -81,43 +88,49 @@ if __name__ == '__main__':
         window_data(emg_array,gesture_array.T.astype(int),new_path,label_map)
 
     else:
-        WT_PATH = 'nina_data/all_7C_data_comb_abs_XL'
-        PATH = 'nina_data/all_7C_data_comb_abs'
-        new_PATH = 'myo_rec_data/win_JRS_7C_comb6_abs_shifted'
+        WT_PATH = 'nina_data/all_7C_data_comb_XL_cross'
+        PATH = 'nina_data/all_7C_data_comb'
+        # new_PATH = 'myo_rec_data/win_JRS_7C_comb7_shifted'
         # model = Network_enhanced(7)
         model = Network_XL(7)
         device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
-        rates = np.logspace(-2.0,-4.0,20)
-        decay = np.logspace(-1,-4,20) #best was
-        lr = rates[10] # for adamw
-        dec = decay[2] # for adamw
-        optimizer = optim.AdamW(model.parameters(),lr=lr,weight_decay=dec)
-        criterion = nn.MSELoss(reduction='mean')
-        params = {'batch_size': 1000, 'shuffle': True,'num_workers': 4}
-        nt = Trainer(model,optimizer,criterion,device,PATH,params,epochs=1,early_stop=False)
-        nt.stats['val']['model_wt'] = torch.load(WT_PATH+'.pt')#,map_location='cpu')
-        tl,ta = nt.test(use_best_wt=True,epoch=1)
+        # nt = best_model_params(model,PATH)
+        # nt.stats['val']['model_wt'] = torch.load(WT_PATH+'.pt',map_location='cpu')
+        # tl,ta = nt.test(use_best_wt=True,epoch=1)
 
-        num2 = model.fc2.in_features
-        num3 = model.fc3.in_features
-        model.load_state_dict(torch.load(WT_PATH+'.pt'))#,map_location='cpu')
-        # for param in model.parameters():
-        #     param.requires_grad = False
-        # for param in model.conv3.parameters():
-        #     param.requires_grad = True
-        # for param in model.fc1.parameters():
-        #     param.requires_grad = True
-        # for param in model.fc2.parameters():
-        #     param.requires_grad = True
-        # for param in model.fc3.parameters():
-        #     param.requires_grad = True
-        model.fc2 = nn.Linear(num2, num3)
-        model.fc3 = nn.Linear(num3, 7)
+        # num2 = model.fc2.in_features
+        # num3 = model.fc3.in_features
+        model.load_state_dict(torch.load(WT_PATH+'.pt',map_location='cpu'))
+        for param in model.parameters():
+            param.requires_grad = False
+        # # for param in model.conv3.parameters():
+        # #     param.requires_grad = True
+        # # for param in model.fc1.parameters():
+        # #     param.requires_grad = True
+        # # for param in model.fc2.parameters():
+        # #     param.requires_grad = True
+        # # for param in model.fc3.parameters():
+        # #     param.requires_grad = True
+        # model.fc2 = nn.Linear(num2, num3)
+        # model.fc3 = nn.Linear(num3, 7)
         # model = ft_nt.model.to(device)
-        ft_nt = Trainer(model,optimizer,criterion,device,new_PATH,params,epochs=500,early_stop=True)
 
-        ft_nt.train(val_train=True)
-        tl, ta = ft_nt.test(use_best_wt=True, epoch=1)
-        torch.save(ft_nt.wt_hist['val'][np.argmin(ft_nt.loss_hist['val'])],new_PATH+'_XL_tran1.pt')
-        plot_path = 'win_JRS_7C_comb6_abs_shifted_XL_tran1'
-        ft_nt.plot_loss(plot_path,True)
+        # ft_nt.max_epochs = 500
+        # ft_nt.early_stop = True
+        # ft_nt = pnn.best_model_params(model,new_PATH)
+        # #
+        # ft_nt.train(val_train=True)
+        # tl, ta = ft_nt.test(use_best_wt=True, epoch=1)
+        # torch.save(ft_nt.wt_hist['val'][np.argmin(ft_nt.loss_hist['val'])],new_PATH+'_XL_cross_tran2.pt')
+        # plot_path = 'win_JRS_7C_comb7_shifted_XL_cross_tran2'
+        # ft_nt.plot_loss(plot_path,True)
+
+        dir = 'myo_rec_data/win_JRS_7C_'
+        new_PATH = [dir+'1_shifted',dir+'2_shifted',dir+'3_shifted',dir+'4_shifted',dir+'5_shifted',dir+'6_shifted']
+        ft_nt = pnn.best_model_params(model,new_PATH)
+        print(len(ft_nt.new_model.parameters()))
+
+        # ft_nt.train(val_train=True)
+        # tl, ta = ft_nt.test(use_best_wt=True, epoch=1)
+        # torch.save(ft_nt.wt_hist['val'][np.argmin(ft_nt.loss_hist['val'])],new_PATH+'_XL_cross_tran2.pt')
+        # plot_path = 'win_JRS_7C_comb7_shifted_XL_cross_tran2'
