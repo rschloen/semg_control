@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# from __future__ import print_function
 
 import torch
 from torch.utils import data
@@ -12,11 +11,14 @@ import argparse, sys
 
 
 class SEMG_Dataset(data.Dataset):
+    '''Custom pytorch dataset class, used to iterate through dataset when used with DataLoaders'''
     def __init__(self,path,mode,fold):
+        '''ARGS: path: dir/file of dataset to load
+                 mode: Set to create datasets for training, validation, and testing
+                 fold: only used for k fold testing, sets current fold out of set number of folds'''
         all_data = np.load(path+'.npy',allow_pickle='True').item()
         if len(all_data) == 3:
             self.data = all_data[mode]
-            # print(self.data)
         else:
             num_folds = 5
             rng = int(len(all_data['train'])/num_folds)
@@ -32,21 +34,27 @@ class SEMG_Dataset(data.Dataset):
             elif mode == 'val':
                 self.data = self.val_data[:]
 
-
-
-
     def __len__(self):
+        '''Returns length of the data set'''
         return len(self.data)
 
 
     def __getitem__(self,index):
+        '''Iterater that pulls a sample from the dataset. Behavior (random, in order) depends on DataLoader
+        ARGS: index: provided by DataLoader to pull a sample'''
         samp = torch.from_numpy(self.data[index][0]).float()
-        label = torch.from_numpy(self.data[index][1])#.float()
+        label = torch.from_numpy(self.data[index][1])
         samp = samp.view(1,samp.shape[0],samp.shape[1])
-
         return samp, label
 
-def window_data(data_array,labels,save_path,label_map):
+def window_data(data_array,labels,save_path,label_map,normalize=True):
+    '''Takes emg data and splits it into windowed samples.
+    ARGS: data_array: emg data
+          labels: class labels for data_array
+          save_path: dir/file to save windowed data
+          label_map: list of tuples containing int class number and corresponding list with zeros and a 1 designating the correct class (Ex:with 5 classes total, [(0,[1,0,0,0,0]),(1, [0,1,0,0,0]), etc..])
+          normalize: (default=True) Normalize data'''
+
     ## Initialize sampling parameters
     ## Want a 260ms window (52 samples) of all eight channels as inputs with 235ms overlap (from paper)
     window_size = 52 #samples, 260ms
@@ -54,7 +62,6 @@ def window_data(data_array,labels,save_path,label_map):
     step = window_size - overlap
     i = 0
     data = {'train':[],'val':[],'test':[]}
-    # print(labels)
     mean_emg = np.mean(data_array)
     std_emg = np.std(data_array)
 
@@ -68,23 +75,18 @@ def window_data(data_array,labels,save_path,label_map):
                 set = 'val'
         else:
             set = 'test'
-        # print(list(labels[i:i+window_size]))
         try:
             label = mode(list(labels[i:i+window_size]))
         except:
-            # print("Two modes")
             i += step
             continue
-        # print(label)
-        ## Normalize Data??
+        ## Normalize Data
         emg_win = data_array[i:i+window_size,:8]
-        normalize = True
         if normalize:
             emg_win = (emg_win - mean_emg)/(std_emg)
-            # emg_win = emg_win/128. #not helpful
 
         if label == 0:
-            if np.random.randint(6) == 1: #only save about fifth of the rest states
+            if np.random.randint(10) == 1: #only save about 10th of the rest states
                 data[set].append([emg_win,np.array([1,0,0,0,0,0,0])])
         else:
             for act, new in label_map:
@@ -114,14 +116,11 @@ if __name__ == '__main__':
     if win:
         emg_data = np.genfromtxt('nina_data/combined_emg_data.csv',delimiter=',')
         restim = np.genfromtxt('nina_data/combined_gest_data.csv',delimiter=',')
-        path = 'nina_data/all_7C_data_3'
+        path = 'nina_data/all_7C_data_comb_abs'
         label_map = [(1,np.array([0,1,0,0,0,0,0])),(3,np.array([0,0,1,0,0,0,0])),(5,np.array([0,0,0,1,0,0,0])), (7,np.array([0,0,0,0,1,0,0])),(12,np.array([0,0,0,0,0,1,0])),(26,np.array([0,0,0,0,0,0,1]))]
-        window_data(emg_data,restim,path,label_map)
-        # print(restim.shape)
+        window_data(np.abs(emg_data),restim,path,label_map,normalize=True)
     else:
-        gen_data = False
         if gen_data:
-
             ## Load and combine data from all subjects
             x = loadmat('../../ninapro_data/s1/S1_E1_A1.mat') #Exercise 1. 12 hand gestures included gestures of interest
             emg_data = x['emg'] #first 8 columns are from myo closest to elbow, next 8 are from second myo rotated 22 degs
@@ -132,7 +131,6 @@ if __name__ == '__main__':
                 emg_data = np.vstack((emg_data,x['emg']))
                 restim = np.vstack((restim,x['restimulus']))
                 rep = np.vstack((rep,x['rerepetition']))
-            # print(restim[-100:])
                 y = loadmat('../../ninapro_data/s'+str(i)+'/S'+str(i)+'_E2_A1.mat')
                 e2 = y['emg']
                 e2_res = y['restimulus']
@@ -151,34 +149,21 @@ if __name__ == '__main__':
                 for row in restim:
                     emg_gesture_writer.writerow(row)
 
-
-
         else:
-            ## Test distribution of
-            path = "nina_data/all_7C_data_3"
-            # path = 'myo_rec_data/win_JRS_7C_1'
+            ## Test distribution of dataset
+            path = "nina_data/all_7C_data_comb"
             f = open(path+'.txt','w')
             modes = ['train','val','test']
             tot = []
             data_len = 0
-            # prev_dataset = SEMG_Dataset(path,'train',0)
             for phase in modes:
-                # if phase == 'val':
-                #     folds = range(5)
-                # else:
-                # folds = [0]
-                # for l in folds:
-                print(phase)
                 dataset = SEMG_Dataset(path,phase,0)
                 data_len += len(dataset)
-                params = {'batch_size': 50, 'shuffle': True,'num_workers': 4}
+                params = {'batch_size': 100, 'shuffle': True,'num_workers': 4}
                 train_loader = data.DataLoader(dataset, **params)
                 test = [0,1,2,3,4,5,6]
-                # for c in test:
                 c1 = c2 = c3 = c4 = c5 = c6 = c7 = 0
                 for input, label in train_loader:
-                    print(input.shape)
-                    # print(label)
                     c1 += (torch.argmax(label,dim=1) == test[0]).sum().item()
                     c2 += (torch.argmax(label,dim=1) == test[1]).sum().item()
                     c3 += (torch.argmax(label,dim=1) == test[2]).sum().item()
