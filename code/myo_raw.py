@@ -201,7 +201,7 @@ class MyoRaw(object):
     def detect_tty(self):
         for p in comports():
             if re.search(r'PID=2458:0*1', p[2]):
-                print('using device:', p[0])
+                # print('using device:', p[0])
                 return p[0]
 
         return None
@@ -236,7 +236,7 @@ class MyoRaw(object):
         ## get firmware version
         fw = self.read_attr(0x17)
         _, _, _, _, v0, v1, v2, v3 = unpack('BHBBHHHH', fw.payload)
-        print('firmware version: %d.%d.%d.%d' % (v0, v1, v2, v3))
+        # print('firmware version: %d.%d.%d.%d' % (v0, v1, v2, v3))
 
         self.old = (v0 == 0)
 
@@ -271,7 +271,7 @@ class MyoRaw(object):
 
         else:
             name = self.read_attr(0x03)
-            print('device name: %s' % name.payload)
+            # print('device name: %s' % name.payload)
 
             ## enable IMU data
             self.write_attr(0x1d, b'\x01\x00')
@@ -324,8 +324,8 @@ class MyoRaw(object):
                 elif typ == 3: # pose
                     self.on_pose(Pose(val))
             else:
-                print('data with unknown attr: %02X %s' % (attr, p))
-
+                # print('data with unknown attr: %02X %s' % (attr, p))
+                pass
         self.bt.add_handler(handle_data)
 
 
@@ -441,7 +441,7 @@ if __name__ == '__main__':
     print(str(HAVE_PYGAME))
     last_vals = None
 
-    with open('myo_rec_data/raw_emg_JRS_7C_3.csv', mode='w') as emg_file, open('myo_rec_data/gesture_JRS_7C_3.csv',mode='w') as gesture_file:
+    with open('myo_rec_data/raw_emg_JRS_7C_7.csv', mode='w') as emg_file, open('myo_rec_data/gesture_JRS_7C_7.csv',mode='w') as gesture_file:
         emg_writer = csv.writer(emg_file, delimiter=',')
         emg_gesture_writer = csv.writer(gesture_file, delimiter=',')
 
@@ -474,9 +474,11 @@ if __name__ == '__main__':
         m = MyoRaw(sys.argv[1] if len(sys.argv) >= 2 else None)
 
         def proc_emg(emg, moving, times=[]):
+            '''Plot emg recording in realtime for visualization and write gesture class  number according to key presses during the
+            recording'''
             if HAVE_PYGAME:
                 ## update pygame display
-                plot(scr, [e / 500. for e in emg]) # NEED TO BE ON THIS WINDOW FOR THE KEY PRESS TO WORK!!!!!!!!
+                plot(scr, [e / 500. for e in emg]) # NEED TO BE ON THIS PLOT WINDOW FOR THE KEY PRESS TO WORK!!!!!!!!
                 keys = pygame.key.get_pressed()
                 if keys[pygame.K_1]: #element will be 1
                     print('1')
@@ -530,11 +532,6 @@ if __name__ == '__main__':
                     for ev in pygame.event.get():
                         if ev.type == QUIT or (ev.type == KEYDOWN and ev.unicode == 'q'):
                              raise KeyboardInterrupt()
-                        # elif ev.type == KEYDOWN:
-                        #      if K_1 <= ev.key <= K_3:
-                        #          m.vibrate(ev.key - K_0)
-                        #      if K_KP1 <= ev.key <= K_KP3:
-                        #          m.vibrate(ev.key - K_KP0)
 
         except KeyboardInterrupt:
              pass
