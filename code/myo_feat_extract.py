@@ -7,6 +7,10 @@ import numpy as np
 
 
 def plot_emg(data,gesture,path):
+    '''Plots recorded emg data for visualization
+    ARGS: data: emg data to plot
+          gesture: gesture data to plot along side emg data
+          path: Used to display file name on plot'''
     fs = 200. #200Hz
     time = len(data)/fs #samples/(sample/second)
     x = np.linspace(0,time,len(data))
@@ -26,28 +30,11 @@ def plot_emg(data,gesture,path):
     plt.plot(x,gesture,'k')
     plt.show()
 
-def MAV(data):
-    array = np.zeros(8)
-    for i in range(8):
-        array[i] = np.sum(np.abs(data[:,i]))/len(data)
-    return array
-
-def RMS(data):
-    array = np.zeros(8)
-    for i in range(8):
-        array[i] = np.sqrt(np.sum(data[:,i]**2)/len(data))
-    return array
-
 
 if __name__ == '__main__':
-    # emg_array = np.array([])
     fs = 200. #200Hz
-    # test_array = np.array([[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8],[1,2,3,4,5,6,7,8]])
     path = 'real_time'
     emg_array = np.loadtxt('real_time_rec.csv',delimiter=',')
     gesture_array = np.loadtxt('real_time_gest.csv',delimiter=',')
-    # print(RMS(emg_array[:100]))
-    # print(MAV(emg_array[:100]))
     time = len(emg_array)/fs #samples/(sample/second)
-    # print(time)
     plot_emg(emg_array,gesture_array,path=path)
