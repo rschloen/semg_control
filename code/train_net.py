@@ -20,18 +20,7 @@ from data_loader import SEMG_Dataset
 
 
 class Trainer():
-    '''This class is used to train and test neural networks, plot the models performance throughout training and save useful statistics
-    Initializing this class requries:
-    ARGS: model: class object of the pytorch model to train
-          optimizer: pytorch optim object for the eoptimization algorithm to use (Ex: SDG, AdamW)
-          criterion: pytorch loss function object such as MSE or CrossEntropyLoss
-          device: str specifying cuda or cpu
-          data_path: dir/file of data set to use in pytorch Dataset class
-          loader_params: parameters for pytorch dataloaders
-          file: (default=None) dir/file to store stats in
-          scheduler: (default=None) pytorch learning rate scheduler object
-          epochs: (default=100) Max epochs of training to perform
-          early_stop: (default=False) Allows early stopping, such as when loss plateaus during training  '''
+    '''This class is used to train and test neural networks, plot the models performance throughout training and save useful statistics'''
     def __init__(self,model,optimizer,criterion,device,data_path,loader_params,file=None,scheduler=None,epochs=100,early_stop=False):
      '''ARGS: model: class object of the pytorch model to train
               optimizer: pytorch optim object for the eoptimization algorithm to use (Ex: SDG, AdamW)
