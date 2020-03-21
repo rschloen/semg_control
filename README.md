@@ -5,7 +5,7 @@ The goal of this project was to achieve accurate, real time prediction of hand g
 
  To acquire the SEMG signals, I used Thalmic Lab's Myo Armband, along with code adapted from the [PyoConnect](http://www.fernandocosentino.net/pyoconnect/) library, which provides eight channels of raw EMG signal at 200 Hz. I also used data from database 5 of the Ninapro SEMG databases[1], which also used the Myo Armband, as the data for pre-training the neural network. From the Ninapro database, I selected 7 gestures: flexion of all 5 fingers, open hand, and closed hand (fist) (Exercise A(1), 1,3,5,7,12 and Exercise B(2),5 and 6 found in [2]).
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/uckYHXjnjIc" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+[![Project Demo](img/demo_thumb.jpg)](https://youtu.be/uckYHXjnjIc)
 
 ### Instructions:
 #### Setup:
@@ -96,7 +96,7 @@ The following is a list of the tuned hyperparameters and their value: For the op
 
 ##### Future Work
 
-As mentioned previously, I plan to continue working on a PNN as a method for improving the accuracy between sessions and subjects. Additionally, I only used 7 gestures for this project, so adding additional gestures from the Ninapro dataset is a natural next step, and the additional classes should not affect the overall accuracy too much. Finally, the ultimate goal of this project is to be able to control a robotic hand, so another natural next step is to implement this model, with its predictions, on a physical robot. 
+As mentioned previously, I plan to continue working on a PNN as a method for improving the accuracy between sessions and subjects. Additionally, I only used 7 gestures for this project, so adding additional gestures from the Ninapro dataset is a natural next step, and the additional classes should not affect the overall accuracy too much. Finally, the ultimate goal of this project is to be able to control a robotic hand, so another natural next step is to implement this model, with its predictions, on a physical robot.
 
 
 ### References:
