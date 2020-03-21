@@ -76,7 +76,7 @@ if __name__ == '__main__':
             gesture_array = np.append(gesture_array,np.loadtxt('myo_rec_data/gesture_'+path+'{}.csv'.format(i+1),delimiter=','))
 
         emg_array = np.delete(emg_array,0,0) #first row was initialized with zeros, needs to be removed
-        new_path = 'myo_rec_data/win_JRS_7C_comb7_shifted'.format(i) #file to store new combined dataset
+        new_path = 'myo_rec_data/win_JRS_7C_comb7_shifted' #file to store new combined dataset
         with open('myo_rec_data/win_JRS_7C_comb7_shifted_stats.txt','w') as real_time:
             stat_writer = csv.writer(real_time, delimiter=',')
             mean_emg = np.mean(emg_array)

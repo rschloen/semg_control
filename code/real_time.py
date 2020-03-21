@@ -124,12 +124,15 @@ if __name__ == '__main__':
     model = Network_XL(7)
     model_path = 'myo_rec_data/win_JRS_7C_comb7_shifted_XL_cross_tran_final2.pt'
     path = 'myo_rec_data/win_JRS_7C_comb7_shifted'
-
+    try:
+        start = int(args.start_channel)
+    except:
+        start = 0
 
     model.load_state_dict(torch.load(model_path,map_location='cpu'))
     model.eval()
     first_activity = most_active('myo_rec_data/raw_emg_JRS_7C_1.csv') #should be 3
-    rt = RealTime(model,m,int(args.start_channel),first_activity)
+    rt = RealTime(model,m,start,first_activity)
     cal = input('Begin calibration recording? ')
     if cal == 'y':
         rt.calibrate()

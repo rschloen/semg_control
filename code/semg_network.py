@@ -38,7 +38,8 @@ class Network(nn.Module):
         return F.softmax(x,dim=1) #dim=1 refers to along the rows
 
 class Network_enhanced(nn.Module):
-    '''Enhanced Conv net architecture adapted from https://arxiv.org/pdf/1801.07756.pdf for raw emg. Used for much of the earlier
+    '''Enhanced Conv net architecture adapted from https://arxiv.org/pdf/1801.07756.pdf for raw emg.
+    Used for much of the earlier
     model training trials throughout this project'''
     def __init__(self,num_classes):
         super(Network_enhanced,self).__init__()
